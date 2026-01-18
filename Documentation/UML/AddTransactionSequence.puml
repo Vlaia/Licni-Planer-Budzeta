@@ -1,0 +1,50 @@
+@startuml AddTransactionSequence
+
+title Dodavanje nove transakcije
+
+actor Korisnik
+participant "TransactionView" as View
+participant "TransactionViewModel" as ViewModel
+participant "RelayCommand" as Command
+participant "TransactionFactory" as Factory
+participant "Repository<Transaction>" as Repository
+participant "BudgetDbContext" as DbContext
+database "SQLite DB" as DB
+
+Korisnik -> View : Unosi podatke o transakciji
+View -> ViewModel : Binding (Amount, Description, Date, Category)
+Korisnik -> View : Klik na "Dodaj" dugme
+View -> Command : Execute(AddTransactionCommand)
+Command -> ViewModel : AddTransaction()
+
+ViewModel -> Factory : CreateTransaction(type, amount, description, date, categoryId, userId)
+Factory -> Factory : Kreira Income ili Expense objekat
+Factory --> ViewModel : transaction
+
+ViewModel -> Repository : AddAsync(transaction)
+Repository -> DbContext : Set<Transaction>.AddAsync(transaction)
+DbContext -> DB : INSERT INTO Transactions
+DB --> DbContext : OK
+DbContext --> Repository : entity
+Repository -> DbContext : SaveChangesAsync()
+DbContext -> DB : COMMIT
+DB --> DbContext : OK
+DbContext --> Repository : OK
+Repository --> ViewModel : transaction
+
+ViewModel -> ViewModel : LoadTransactions()
+ViewModel -> Repository : FindAsync(t => t.UserId == currentUserId)
+Repository -> DbContext : Set<Transaction>.Where(...).ToListAsync()
+DbContext -> DB : SELECT * FROM Transactions WHERE UserId = ...
+DB --> DbContext : rezultati
+DbContext --> Repository : List<Transaction>
+Repository --> ViewModel : transactions
+
+ViewModel -> ViewModel : Ažurira Transactions kolekciju
+ViewModel -> View : PropertyChanged event
+View -> View : Ažurira DataGrid
+
+ViewModel -> View : Prikazuje MessageBox("Uspešno dodato!")
+View --> Korisnik : Potvrda uspešnog dodavanja
+
+@enduml

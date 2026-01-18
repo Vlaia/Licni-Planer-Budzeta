@@ -1,0 +1,244 @@
+@startuml ClassDiagram
+
+' Entiteti
+class User {
+  + Id: int
+  + Username: string
+  + PasswordHash: string
+  + Email: string
+  + FullName: string
+  + CreatedAt: DateTime
+  --
+  + Categories: ICollection<Category>
+  + Transactions: ICollection<Transaction>
+  + Budgets: ICollection<Budget>
+}
+
+abstract class Category {
+  + Id: int
+  + Name: string
+  + Description: string
+  + Color: string
+  + UserId: int
+  + CreatedAt: DateTime
+  --
+  + {abstract} GetCategoryType(): string
+  + {virtual} GetIcon(): string
+}
+
+class IncomeCategory {
+  + IsRecurring: bool
+  --
+  + GetCategoryType(): string
+  + GetIcon(): string
+}
+
+class ExpenseCategory {
+  + IsEssential: bool
+  + MaxMonthlyBudget: decimal
+  --
+  + GetCategoryType(): string
+  + GetIcon(): string
+}
+
+abstract class Transaction {
+  + Id: int
+  + Amount: decimal
+  + Description: string
+  + Date: DateTime
+  + CategoryId: int
+  + UserId: int
+  + CreatedAt: DateTime
+  --
+  + {abstract} GetTransactionType(): string
+  + {abstract} FormatAmount(): string
+  + {virtual} GetIcon(): string
+}
+
+class Income {
+  + Source: string
+  + IsTaxable: bool
+  --
+  + GetTransactionType(): string
+  + FormatAmount(): string
+  + GetIcon(): string
+}
+
+class Expense {
+  + PaymentMethod: string
+  + IsPlanned: bool
+  --
+  + GetTransactionType(): string
+  + FormatAmount(): string
+  + GetIcon(): string
+}
+
+class Budget {
+  + Id: int
+  + CategoryId: int
+  + UserId: int
+  + PlannedAmount: decimal
+  + Month: int
+  + Year: int
+  + CreatedAt: DateTime
+  --
+  + GetPeriod(): string
+  + IsActive(date: DateTime): bool
+}
+
+class MonthlyReport {
+  + Id: int
+  + UserId: int
+  + Month: int
+  + Year: int
+  + TotalIncome: decimal
+  + TotalExpenses: decimal
+  + Balance: decimal
+  + GeneratedAt: DateTime
+  --
+  + GetPeriod(): string
+  + GetMonthName(): string
+  + IsBalancePositive(): bool
+}
+
+' Servisi i Dizajn Šabloni
+class "<<Singleton>>\nBudgetDbContext" as DbContext {
+  - {static} _instance: BudgetDbContext
+  - {static} _lock: object
+  --
+  + {static} Instance: BudgetDbContext
+  + Users: DbSet<User>
+  + Categories: DbSet<Category>
+  + Transactions: DbSet<Transaction>
+  + Budgets: DbSet<Budget>
+  + MonthlyReports: DbSet<MonthlyReport>
+  --
+  + {static} ResetInstance(): void
+  # OnConfiguring(optionsBuilder): void
+  # OnModelCreating(modelBuilder): void
+}
+
+class "<<Singleton>>\nUserSession" as UserSession {
+  - {static} _instance: UserSession
+  - {static} _lock: object
+  --
+  + {static} Instance: UserSession
+  + CurrentUser: User
+  + IsLoggedIn: bool
+  --
+  + Login(user: User): void
+  + Logout(): void
+  + {static} ResetInstance(): void
+}
+
+interface "<<Repository Pattern>>\nIRepository<T>" as IRepository {
+  + GetByIdAsync(id: int): Task<T>
+  + GetAllAsync(): Task<IEnumerable<T>>
+  + FindAsync(predicate): Task<IEnumerable<T>>
+  + AddAsync(entity: T): Task<T>
+  + UpdateAsync(entity: T): Task
+  + DeleteAsync(entity: T): Task
+  + CountAsync(predicate): Task<int>
+  + ExistsAsync(predicate): Task<bool>
+  + SaveChangesAsync(): Task
+}
+
+class "Repository<T>" as Repository {
+  # _context: BudgetDbContext
+  # _dbSet: DbSet<T>
+  --
+  + GetByIdAsync(id): Task<T>
+  + GetAllAsync(): Task<IEnumerable<T>>
+  + FindAsync(predicate): Task<IEnumerable<T>>
+  + AddAsync(entity): Task<T>
+  + UpdateAsync(entity): Task
+  + DeleteAsync(entity): Task
+}
+
+class "<<Factory>>\nTransactionFactory" as Factory {
+  + {static} CreateTransaction(type, amount, description, date, categoryId, userId): Transaction
+  + {static} CreateIncome(amount, description, date, categoryId, userId, source, isTaxable): Income
+  + {static} CreateExpense(amount, description, date, categoryId, userId, paymentMethod, isPlanned): Expense
+}
+
+class ExportService {
+  - _jsonOptions: JsonSerializerOptions
+  --
+  + ExportTransactionsToJson(transactions, filePath): void
+  + ImportTransactionsFromJson(filePath): List<Transaction>
+  + ExportCategoriesToJson(categories, filePath): void
+  + ImportCategoriesFromJson(filePath): List<Category>
+  + ExportTransactionsToXml(transactions, filePath): void
+  + ImportTransactionsFromXml(filePath): List<Transaction>
+  + ExportCategoriesToXml(categories, filePath): void
+  + ImportCategoriesFromXml(filePath): List<Category>
+}
+
+class ReportService {
+  + GenerateMonthlyReport(report, transactions, filePath): void
+  + GenerateCategoryReport(categories, categoryTotals, filePath, startDate, endDate): void
+}
+
+' MVVM
+abstract class ViewModelBase {
+  + event PropertyChanged: PropertyChangedEventHandler
+  --
+  # OnPropertyChanged(propertyName): void
+  # SetProperty<T>(field, value, propertyName): bool
+}
+
+class "<<Command>>\nRelayCommand" as RelayCommand {
+  - _execute: Action<object>
+  - _canExecute: Predicate<object>
+  --
+  + CanExecute(parameter): bool
+  + Execute(parameter): void
+  + RaiseCanExecuteChanged(): void
+}
+
+class TransactionViewModel {
+  - _transactionRepository: Repository<Transaction>
+  - _categoryRepository: Repository<Category>
+  --
+  + Transactions: ObservableCollection<Transaction>
+  + Categories: ObservableCollection<Category>
+  + SelectedTransaction: Transaction
+  + Amount: decimal
+  + Description: string
+  + Date: DateTime
+  --
+  + AddTransactionCommand: ICommand
+  + UpdateTransactionCommand: ICommand
+  + DeleteTransactionCommand: ICommand
+}
+
+' Relacije - Nasleđivanje
+Category <|-- IncomeCategory
+Category <|-- ExpenseCategory
+Transaction <|-- Income
+Transaction <|-- Expense
+ViewModelBase <|-- TransactionViewModel
+
+' Relacije - Implementacija interfejsa
+IRepository <|.. Repository
+
+' Relacije - Asocijacije
+User "1" -- "*" Category : sadrži >
+User "1" -- "*" Transaction : ima >
+User "1" -- "*" Budget : postavlja >
+Category "1" -- "*" Transaction : kategoriše >
+Category "1" -- "*" Budget : ograničava >
+
+' Kompozicija
+DbContext *-- User
+DbContext *-- Category
+DbContext *-- Transaction
+DbContext *-- Budget
+
+' Dependency
+TransactionViewModel ..> Repository : koristi
+TransactionViewModel ..> Factory : kreira
+TransactionViewModel ..> RelayCommand : koristi
+Repository ..> DbContext : pristupa
+
+@enduml

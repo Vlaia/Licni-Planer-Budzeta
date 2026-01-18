@@ -1,0 +1,59 @@
+@startuml LoginSequence
+
+title Login proces korisnika
+
+actor Korisnik
+participant "LoginView" as View
+participant "LoginViewModel" as ViewModel
+participant "RelayCommand" as Command
+participant "Repository<User>" as Repository
+participant "BudgetDbContext\n<<Singleton>>" as DbContext
+database "SQLite DB" as DB
+participant "UserSession\n<<Singleton>>" as Session
+participant "MainView" as MainView
+
+Korisnik -> View : Unosi username i password
+View -> ViewModel : Binding (Username, Password)
+Korisnik -> View : Klik na "Prijavi se"
+View -> Command : Execute(LoginCommand)
+Command -> ViewModel : ExecuteLogin()
+
+ViewModel -> Repository : FindAsync(u => u.Username == username && u.PasswordHash == password)
+Repository -> DbContext : Set<User>.Where(...).ToListAsync()
+
+note right of DbContext
+  Singleton pattern osigurava
+  jednu instancu DbContext-a
+end note
+
+DbContext -> DB : SELECT * FROM Users WHERE Username = ... AND PasswordHash = ...
+DB --> DbContext : user rezultat
+DbContext --> Repository : List<User>
+Repository --> ViewModel : user
+
+alt Korisnik pronađen
+    ViewModel -> Session : Login(user)
+    
+    note right of Session
+      Singleton pattern osigurava
+      globalnu sesiju korisnika
+    end note
+    
+    Session -> Session : CurrentUser = user
+    Session -> Session : UserLoggedIn event
+    Session --> ViewModel : OK
+    
+    ViewModel -> View : LoginSuccessful event
+    View -> MainView : new MainView()
+    View -> MainView : Show()
+    View -> View : Close()
+    MainView --> Korisnik : Prikazuje glavni prozor
+    
+else Korisnik ne postoji
+    ViewModel -> ViewModel : ErrorMessage = "Neispravno korisničko ime ili lozinka"
+    ViewModel -> View : PropertyChanged event
+    View -> View : Prikazuje error poruku
+    View --> Korisnik : Error: Neispravni kredencijali
+end
+
+@enduml

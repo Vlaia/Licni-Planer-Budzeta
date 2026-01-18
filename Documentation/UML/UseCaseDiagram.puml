@@ -1,0 +1,56 @@
+@startuml UseCaseDiagram
+
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Korisnik" as User
+
+rectangle "Budget Planner Sistem" {
+  usecase "UC1: Registracija/Login" as UC1
+  usecase "UC2: Upravljanje Kategorijama" as UC2
+  usecase "UC3: Dodavanje Transakcija" as UC3
+  usecase "UC4: Pregled Transakcija" as UC4
+  usecase "UC5: Postavljanje Budžeta" as UC5
+  usecase "UC6: Generisanje Izveštaja" as UC6
+  usecase "UC7: Export Podataka" as UC7
+  usecase "UC8: Import Podataka" as UC8
+  
+  usecase "Kreiranje Kategorije" as UC2_1
+  usecase "Izmena Kategorije" as UC2_2
+  usecase "Brisanje Kategorije" as UC2_3
+  
+  usecase "Dodavanje Prihoda" as UC3_1
+  usecase "Dodavanje Rashoda" as UC3_2
+  
+  usecase "Filtriranje po Datumu" as UC4_1
+  usecase "Pretraga po Opisu" as UC4_2
+  
+  usecase "Export u JSON" as UC7_1
+  usecase "Export u XML" as UC7_2
+  usecase "Export u PDF" as UC7_3
+}
+
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+User --> UC7
+User --> UC8
+
+UC2 <.. UC2_1 : <<include>>
+UC2 <.. UC2_2 : <<include>>
+UC2 <.. UC2_3 : <<include>>
+
+UC3 <.. UC3_1 : <<extend>>
+UC3 <.. UC3_2 : <<extend>>
+
+UC4 <.. UC4_1 : <<extend>>
+UC4 <.. UC4_2 : <<extend>>
+
+UC7 <.. UC7_1 : <<extend>>
+UC7 <.. UC7_2 : <<extend>>
+UC7 <.. UC7_3 : <<extend>>
+
+@enduml

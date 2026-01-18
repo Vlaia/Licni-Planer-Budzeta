@@ -1,0 +1,122 @@
+@startuml PackageDiagram
+
+title Organizacija paketa/namespace-a
+
+package "BudgetPlanner.App" {
+    
+    package "Models" {
+        class User
+        abstract class Category
+        class IncomeCategory
+        class ExpenseCategory
+        abstract class Transaction
+        class Income
+        class Expense
+        class Budget
+        class MonthlyReport
+    }
+    
+    package "ViewModels" {
+        abstract class ViewModelBase
+        class LoginViewModel
+        class MainViewModel
+        class TransactionViewModel
+        class CategoryViewModel
+        class BudgetViewModel
+    }
+    
+    package "Views" {
+        class LoginView
+        class MainView
+        class TransactionView
+        class CategoryView
+        class BudgetView
+    }
+    
+    package "Services" {
+        interface IRepository
+        class Repository
+        class UserSession
+        class TransactionFactory
+        class ExportService
+        class ReportService
+    }
+    
+    package "Data" {
+        class BudgetDbContext
+    }
+    
+    package "Commands" {
+        class RelayCommand
+    }
+    
+    package "Helpers" {
+        class StringToVisibilityConverter
+    }
+    
+}
+
+package "BudgetPlanner.Tests" {
+    class TransactionViewModelTests
+    class TransactionFactoryTests
+    class UserSessionTests
+}
+
+package "External Dependencies" {
+    package "Microsoft.EntityFrameworkCore" {
+        class DbContext
+        class DbSet
+    }
+    
+    package "System.Text.Json" {
+        class JsonSerializer
+    }
+    
+    package "iTextSharp" {
+        class Document
+        class PdfWriter
+    }
+}
+
+' Dependencies između paketa
+ViewModels ..> Models : koristi
+ViewModels ..> Services : koristi
+ViewModels ..> Commands : koristi
+Views ..> ViewModels : data binding
+Services ..> Models : upravlja
+Services ..> Data : pristupa
+Data ..> Models : mapira
+BudgetPlanner.Tests ..> ViewModels : testira
+BudgetPlanner.Tests ..> Services : testira
+
+' External dependencies
+Data ..> "Microsoft.EntityFrameworkCore" : koristi
+Services ..> "System.Text.Json" : koristi
+Services ..> "iTextSharp" : koristi
+
+note right of Models
+  Domenski modeli i entiteti.
+  Sadrže poslovnu logiku.
+  Nasleđivanje i polimorfizam.
+end note
+
+note right of ViewModels
+  MVVM pattern.
+  Posrednici između View i Model.
+  INotifyPropertyChanged implementacija.
+end note
+
+note right of Services
+  Dizajn šabloni:
+  - Singleton (UserSession, DbContext)
+  - Repository (IRepository, Repository)
+  - Factory (TransactionFactory)
+end note
+
+note right of Commands
+  Command pattern.
+  ICommand implementacija
+  za MVVM binding.
+end note
+
+@enduml

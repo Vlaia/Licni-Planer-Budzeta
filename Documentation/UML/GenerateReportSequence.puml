@@ -1,0 +1,84 @@
+@startuml GenerateReportSequence
+
+title Generisanje mesečnog PDF izveštaja
+
+actor Korisnik
+participant "MainView" as View
+participant "MainViewModel" as ViewModel
+participant "Repository<Transaction>" as TransRepo
+participant "Repository<MonthlyReport>" as ReportRepo
+participant "BudgetDbContext" as DbContext
+database "SQLite DB" as DB
+participant "ReportService" as ReportService
+participant "iTextSharp" as PDF
+participant "SaveFileDialog" as Dialog
+participant "FileSystem" as FS
+
+Korisnik -> View : Klik na "PDF Izveštaj"
+View -> ViewModel : GenerateReportCommand.Execute()
+ViewModel -> ViewModel : GenerateReport()
+
+ViewModel -> TransRepo : FindAsync(t => t.UserId == userId && t.Date.Month == month && t.Date.Year == year)
+TransRepo -> DbContext : Query transakcija za trenutni mesec
+DbContext -> DB : SELECT * FROM Transactions WHERE UserId = ... AND Month = ... AND Year = ...
+DB --> DbContext : transakcije
+DbContext --> TransRepo : List<Transaction>
+TransRepo --> ViewModel : transactions
+
+ViewModel -> ViewModel : Kreira MonthlyReport objekat
+note right of ViewModel
+  Izračunava:
+  - TotalIncome (suma svih Income)
+  - TotalExpenses (suma svih Expense)
+  - Balance (TotalIncome - TotalExpenses)
+end note
+
+ViewModel -> Dialog : ShowDialog()
+Dialog --> Korisnik : Prikazuje dialog za čuvanje
+Korisnik -> Dialog : Bira lokaciju i ime fajla
+Dialog --> ViewModel : DialogResult.OK, filePath
+
+ViewModel -> ReportService : GenerateMonthlyReport(report, transactions, filePath)
+
+ReportService -> PDF : new Document(PageSize.A4)
+PDF --> ReportService : document
+
+ReportService -> PDF : PdfWriter.GetInstance(document, fileStream)
+ReportService -> PDF : document.Open()
+
+ReportService -> ReportService : Dodaje naslov dokumenta
+ReportService -> PDF : document.Add(new Paragraph("Mesečni Finansijski Izveštaj"))
+
+ReportService -> ReportService : Dodaje informacije o periodu
+ReportService -> PDF : document.Add(periodParagraph)
+
+ReportService -> ReportService : Kreira tabelu sa finansijskim pregledom
+ReportService -> PDF : document.Add(summaryTable)
+note right of ReportService
+  Tabela sadrži:
+  - Ukupne prihode
+  - Ukupne rashode
+  - Bilans (zeleno ako pozitivan, crveno ako negativan)
+end note
+
+loop Za svaku transakciju
+    ReportService -> ReportService : Dodaje red u tabelu transakcija
+    ReportService -> PDF : transactionsTable.AddCell(...)
+end
+
+ReportService -> PDF : document.Add(transactionsTable)
+ReportService -> PDF : document.Add(footer)
+ReportService -> PDF : document.Close()
+PDF --> ReportService : OK
+
+ReportService -> FS : Upisuje PDF u fajl sistem
+FS --> ReportService : Fajl sačuvan
+ReportService --> ViewModel : OK
+
+ViewModel -> View : MessageBox.Show("Izveštaj je uspešno generisan!")
+View --> Korisnik : Prikazuje poruku o uspehu
+
+Korisnik -> FS : Otvara PDF fajl
+FS --> Korisnik : Prikazuje PDF izveštaj
+
+@enduml
